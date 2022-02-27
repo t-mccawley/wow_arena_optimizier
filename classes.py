@@ -1,6 +1,10 @@
 # imports
 from logging import warning
 from enum import Enum
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib import cm
+import numpy as np
 
 # define classes
 class ClassSpec(Enum):
@@ -36,6 +40,40 @@ class ClassSpec(Enum):
     WARRIOR_FURY = 30
     WARRIOR_PROT = 31
     ANY = 32
+
+class_spec_color_dict = {
+    ClassSpec.DEATH_KNIGHT_BLOOD:(0.77,0.12,0.23,1.0),
+    ClassSpec.DEATH_KNIGHT_FROST:(0.77,0.12,0.23,1.0),
+    ClassSpec.DEATH_KNIGHT_UNHOLY:(0.77,0.12,0.23,1.0),
+    ClassSpec.DRUID_FERAL:(1.00,0.49,0.04,1.0),
+    ClassSpec.DRUID_RESTO:(1.00,0.49,0.04,1.0),
+    ClassSpec.DRUID_BALANCE:(1.00,0.49,0.04,1.0),
+    ClassSpec.HUNTER_BM:(0.67,0.83,0.45,1.0),
+    ClassSpec.HUNTER_SURV:(0.67,0.83,0.45,1.0),
+    ClassSpec.HUNTER_MARKS:(0.67,0.83,0.45,1.0),
+    ClassSpec.MAGE_FROST:(0.25,0.78,0.92,1.0),
+    ClassSpec.MAGE_FIRE:(0.25,0.78,0.92,1.0),
+    ClassSpec.MAGE_ARCANE:(0.25,0.78,0.92,1.0),
+    ClassSpec.PALADIN_RET:(0.96,0.55,0.73,1.0),
+    ClassSpec.PALADIN_PROT:(0.96,0.55,0.73,1.0),
+    ClassSpec.PALADIN_HOLY:(0.96,0.55,0.73,1.0),
+    ClassSpec.PALADIN_PREG:(0.96,0.55,0.73,1.0),
+    ClassSpec.PRIEST_HOLY:(1.0,1.0,1.0,1.0),
+    ClassSpec.PRIEST_SHADOW:(1.0,1.0,1.0,1.0),
+    ClassSpec.PRIEST_DISC:(1.0,1.0,1.0,1.0),
+    ClassSpec.ROGUE_COMBAT:(1.00,0.96,0.41,1.0),
+    ClassSpec.ROGUE_SUB:(1.00,0.96,0.41,1.0),
+    ClassSpec.ROGUE_ASSASSIN:(1.00,0.96,0.41,1.0),
+    ClassSpec.SHAMAN_ENH:(0.00,0.44,0.87,1.0),
+    ClassSpec.SHAMAN_RESTO:(0.00,0.44,0.87,1.0),
+    ClassSpec.SHAMAN_ELE:(0.00,0.44,0.87,1.0),
+    ClassSpec.WARLOCK_DEMO:(0.53,0.53,0.93,1.0),
+    ClassSpec.WARLOCK_AFF:(0.53,0.53,0.93,1.0),
+    ClassSpec.WARLOCK_DESTRO:(0.53,0.53,0.93,1.0),
+    ClassSpec.WARRIOR_ARMS:(0.78,0.61,0.43,1.0),
+    ClassSpec.WARRIOR_FURY:(0.78,0.61,0.43,1.0),
+    ClassSpec.WARRIOR_PROT:(0.78,0.61,0.43,1.0),
+}
 
 class ClassRole(Enum):
     DPS = 1
@@ -95,7 +133,7 @@ ClassSpecToClassRoleMap = {
 def create_team_name_string(class_spec_1,class_spec_2):
     """Creates team name string given two class_specs enum"""
     sorted_names = sorted([class_spec_1.name,class_spec_2.name])
-    return("{} / {}".format(sorted_names[0],sorted_names[1]))
+    return("{} + {}".format(sorted_names[0],sorted_names[1]))
 
 class Team:
     """Class that defines a 2v2 arena team"""
@@ -119,7 +157,7 @@ class Team:
             team_tier_rank = team_tier_rank_override_dict[self.name]
         self.team_tier_rank = team_tier_rank
         # assign defaults
-        self.overall_freq = 0.0
+        self.freq_overall = 0.0
         self.score = 0.0
 
     def determine_default_team_tier_rank(self):
@@ -130,7 +168,7 @@ class Team:
         return(team_tier_rank)
 
     def fight(self,other_team,prob_to_win_by_tier,prob_to_win_by_team_dict):
-        """Determines win rank for self team against other team"""
+        """Determines expected number of wins for self team against other team"""
         if self.name in prob_to_win_by_team_dict and other_team.name in prob_to_win_by_team_dict[self.name]:
             prob_to_win = prob_to_win_by_team_dict[self.name][other_team.name]
         elif self.team_tier_rank >= other_team.team_tier_rank:
@@ -138,13 +176,13 @@ class Team:
         else:
             prob_to_win = 1.0 - prob_to_win_by_tier[other_team.team_tier_rank][self.team_tier_rank]
 
-        self.score += (other_team.overall_freq * prob_to_win)*100
+        self.score += (other_team.freq_overall * prob_to_win)
 
     def print(self):
         print(self.name)
-        print("\t{}".format(self.team_tier_rank))
-        print("\tfrequency: {:0.1f}%".format(self.overall_freq*100))
-        print("\tscore: {:0.1f}".format(self.score))
+        print("\ttier rank: {}".format(self.team_tier_rank.name))
+        print("\tfrequency: {:0.1f} teams out of 100".format(self.freq_overall))
+        print("\texpected wins: {:0.1f} wins out of 100".format(self.score))
 
     def __lt__(self,other):
         return(self.score < other.score)
@@ -164,45 +202,96 @@ class TeamRoster:
                 team_name_string = create_team_name_string(class_spec_1,class_spec_2)
                 self.teams[team_name_string] = Team(class_spec_1, class_spec_2, class_spec_tier_rank, team_tier_rank_override_dict)
     
-    def compute_team_frequency(self,frequency_of_teams_by_tier,frequency_of_teams_within_tier_by_team_dict):
-        """returns the frequency of the given team within their tier"""
+    def compute_team_frequency(self,frequency_of_teams_by_tier,frequency_of_teams_override_dict):
+        """
+            returns the frequency of the given team
+            units are number of teams of the given comp out of 100 total teams
+        """
+        # first check for overrides
+        total_teams = 100
+        for team_name in self.teams:
+            if team_name in frequency_of_teams_override_dict:
+                self.teams[team_name].freq_overall = frequency_of_teams_override_dict[team_name]*total_teams
+                total_teams -= frequency_of_teams_override_dict[team_name]*total_teams
+        # compute remaining teams by even distribution within tier
         for tier_rank in TierRank:
-            tier_even_dist_cnt = 0
-            total_tier_freq = frequency_of_teams_by_tier[tier_rank]
-            team_within_tier_freq = 1.0
-            team_freq_dict = {}
+            # determine teams within tier and remove from total pool
+            teams_within_tier = total_teams*frequency_of_teams_by_tier[tier_rank]
+            # count number of remaining teams within tier
+            count_of_rem_teams_in_tier = 0
+            for team_name in self.teams:
+                if (self.teams[team_name].team_tier_rank == tier_rank) and (self.teams[team_name].freq_overall == 0.0):
+                    count_of_rem_teams_in_tier += 1
+            # determine number of teams split evenly
+            for team_name in self.teams:
+                if (self.teams[team_name].team_tier_rank == tier_rank) and (self.teams[team_name].freq_overall == 0.0):
+                    self.teams[team_name].freq_overall = teams_within_tier/count_of_rem_teams_in_tier
+            
+            # print stats to check
+            print("tier_rank: {}".format(tier_rank))
+            total_freq = 0.0
             for team_name in self.teams:
                 if self.teams[team_name].team_tier_rank == tier_rank:
-                    if team_name in frequency_of_teams_within_tier_by_team_dict:
-                        # team has overriden frequency within tier
-                        team_freq_dict[team_name] = frequency_of_teams_within_tier_by_team_dict[team_name]*total_tier_freq
-                        team_within_tier_freq -= frequency_of_teams_within_tier_by_team_dict[team_name]
-                        if team_within_tier_freq < 0.0:
-                            warning("tier {} has individual team overrides that are greater than 1.0".format(tier_rank))
-                    else:
-                        # team is evenly distributed in remainder of tier
-                        tier_even_dist_cnt += 1
-                        team_freq_dict[team_name] = None
-            for team_name in team_freq_dict:
-                if not team_freq_dict[team_name]:
-                    self.teams[team_name].overall_freq = team_within_tier_freq / tier_even_dist_cnt
-                else:
-                    self.teams[team_name].overall_freq = team_freq_dict[team_name]
+                    total_freq += self.teams[team_name].freq_overall
+            print("total_freq: {:0.0f} out of 100 teams".format(total_freq))
     
-    def print(self,sort=False):
+    def print(self,sort=False,top=10):
         teams_to_print = self.teams
         if sort:
             teams_to_print = dict(sorted(teams_to_print.items(), key=lambda item: item[1]))
-        for team in teams_to_print:
-            teams_to_print[team].print()
+        cnt = 0
+        print("=== TOP {} TEAMS ===".format(top))
+        for team in reversed(teams_to_print):
+            if cnt < top:
+                teams_to_print[team].print()
+                cnt += 1
         
     def opt(self,prob_to_win_by_tier,prob_to_win_by_team_dict):
-        max_score = 0.0
         for team_self in self.teams:
             for team_other in self.teams:
                 self.teams[team_self].fight(self.teams[team_other],prob_to_win_by_tier,prob_to_win_by_team_dict)
-            max_score = max([max_score,self.teams[team_self].score])
+    
+    def plot_score(self):
+        # determine ranking of class_spec by average score in comps
+        class_spec_avg_score = {}
+        for class_spec_1 in ClassSpec:
+            if class_spec_1 == ClassSpec.ANY:
+                continue
+            class_spec_avg_score[class_spec_1] = 0.0
+            # scan all comps
+            for class_spec_2 in ClassSpec:
+                if class_spec_2 == ClassSpec.ANY:
+                    continue
+                class_spec_avg_score[class_spec_1] += self.teams[create_team_name_string(class_spec_1,class_spec_2)].score
+            # compute average
+            class_spec_avg_score[class_spec_1] /= (len(ClassSpec) - 1)
+        # sort
+        class_spec_avg_score_sorted = dict(sorted(class_spec_avg_score.items(), key=lambda item: item[1]))
+        # format contour plot data
+        x = [class_spec for class_spec in class_spec_avg_score_sorted]
+        y = [class_spec for class_spec in class_spec_avg_score_sorted]
+        # shape = (rows,cols)
+        z = np.zeros(shape=(len(y),len(x)))
+        for i_x in range(len(x)):
+            for i_y in range(len(y)):
+                z[i_y][i_x] = self.teams[create_team_name_string(x[i_x],y[i_y])].score
         
-        # rescale score [0,100]
-        for team_self in self.teams:
-            self.teams[team_self].score = self.teams[team_self].score/max_score*100
+
+        x_label = [class_spec.name for class_spec in x]
+        y_label = [class_spec.name for class_spec in y]
+
+        fig, ax = plt.subplots(constrained_layout=True,facecolor='grey')
+        cs = ax.contourf(z,cmap='RdYlGn')
+        plt.grid(which='both')
+        plt.xticks(ticks=range(len(x)),labels=x_label,rotation=90,weight='bold')
+        plt.yticks(ticks=range(len(y)),labels=y_label,weight='bold')
+        colors_x = [class_spec_color_dict[class_spec] for class_spec in x]
+        for xtick, color in zip(ax.get_xticklabels(), colors_x):
+            xtick.set_color(color)
+        colors_y = [class_spec_color_dict[class_spec] for class_spec in y]
+        for ytick, color in zip(ax.get_yticklabels(), colors_y):
+            ytick.set_color(color)
+        cbar = fig.colorbar(cs)
+        cbar.ax.set_ylabel('expected wins out of 100')
+
+        plt.show()

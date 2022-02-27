@@ -5,7 +5,7 @@ from setup import (
     class_spec_tier_rank,
     team_tier_rank_override,
     frequency_of_teams_by_tier,
-    frequency_of_teams_within_tier_by_team,
+    frequency_of_teams_override,
     prob_to_win_by_tier,
     prob_to_win_by_team,
 )
@@ -23,18 +23,18 @@ for data in team_tier_rank_override:
         print()
     team_tier_rank_override_dict[team_name_string] = rank
 
-# parse frequency_of_teams_within_tier_by_team
-frequency_of_teams_within_tier_by_team_dict = {}
-for data in frequency_of_teams_within_tier_by_team:
+# parse frequency_of_teams_override
+frequency_of_teams_override_dict = {}
+for data in frequency_of_teams_override:
     class_spec_1 = data[0]
     class_spec_2 = data[1]
     freq = data[2]
     team_name_string = create_team_name_string(class_spec_1,class_spec_2)
-    if team_name_string in frequency_of_teams_within_tier_by_team_dict:
+    if team_name_string in frequency_of_teams_override_dict:
         print()
-        warning("{} is found in frequency_of_teams_within_tier_by_team multiple times".format(team_name_string))
+        warning("{} is found in frequency_of_teams_override multiple times".format(team_name_string))
         print()
-    frequency_of_teams_within_tier_by_team_dict[team_name_string] = freq
+    frequency_of_teams_override_dict[team_name_string] = freq
 
 # parse prob_to_win_by_team
 prob_to_win_by_team_dict = {}
@@ -99,7 +99,7 @@ for data in prob_to_win_by_team:
 team_roster = TeamRoster(class_spec_tier_rank,team_tier_rank_override_dict)
 
 # determine win rank
-team_roster.compute_team_frequency(frequency_of_teams_by_tier,frequency_of_teams_within_tier_by_team_dict)
+team_roster.compute_team_frequency(frequency_of_teams_by_tier,frequency_of_teams_override_dict)
 team_roster.opt(prob_to_win_by_tier,prob_to_win_by_team_dict)
-print("=== RESULTS ===")
-team_roster.print(sort=True)
+team_roster.print(sort=True,top=10)
+team_roster.plot_score()

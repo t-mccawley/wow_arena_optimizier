@@ -96,9 +96,9 @@ frequency_of_teams_by_tier = {
     TierRank.F:0.01,
 }
 
-# frequency of occurrence of team within a tier by team comp
-frequency_of_teams_within_tier_by_team = [
-    [ClassSpec.PALADIN_HOLY,ClassSpec.WARRIOR_ARMS,0.5],
+# frequency of occurrence of team overall
+frequency_of_teams_override = [
+    [ClassSpec.PALADIN_HOLY,ClassSpec.WARRIOR_ARMS,0.3],
 ]
 
 # probability to win based on team tier rank (win prob w.r.t. team associated with first key)
@@ -140,17 +140,17 @@ prob_to_win_by_tier = {
 
 # probability to win based on team composition (win prob w.r.t. team associated with first element)
 prob_to_win_by_team = [
-    # burst comps counter hpal + war
-    [
-        [ClassSpec.PRIEST_SHADOW,ClassSpec.ROGUE_SUB],
-        [ClassSpec.PALADIN_HOLY,ClassSpec.WARRIOR_ARMS],
-        [0.8],
-    ],
-    [
-        [ClassSpec.SHAMAN_ELE,ClassSpec.WARLOCK_DESTRO],
-        [ClassSpec.PALADIN_HOLY,ClassSpec.WARRIOR_ARMS],
-        [0.65],
-    ],
+    # # burst comps counter hpal + war
+    # [
+    #     [ClassSpec.PRIEST_SHADOW,ClassSpec.ROGUE_SUB],
+    #     [ClassSpec.PALADIN_HOLY,ClassSpec.WARRIOR_ARMS],
+    #     [0.8],
+    # ],
+    # [
+    #     [ClassSpec.SHAMAN_ELE,ClassSpec.WARLOCK_DESTRO],
+    #     [ClassSpec.PALADIN_HOLY,ClassSpec.WARRIOR_ARMS],
+    #     [0.65],
+    # ],
     # holy paladin counters insane melee burst from feral + rogue
     [
         [ClassSpec.PALADIN_HOLY,ClassSpec.ANY],

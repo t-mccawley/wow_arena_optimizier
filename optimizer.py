@@ -85,7 +85,7 @@ for data in prob_to_win_by_team:
             # ensure mirror is always 50%
             if self_team_name == other_team_name:
                 prob = 0.5
-                
+
             prob_to_win_by_team_dict[self_team_name][other_team_name] = prob    
 
 # print("=== prob_to_win_by_team_dict ===")

@@ -91,8 +91,8 @@ frequency_of_teams_by_tier = {
     TierRank.S:0.35,
     TierRank.A:0.25,
     TierRank.B:0.25,
-    TierRank.C:0.09,
-    TierRank.D:0.05,
+    TierRank.C:0.10,
+    TierRank.D:0.04,
     TierRank.F:0.01,
 }
 

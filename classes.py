@@ -120,7 +120,7 @@ class Team:
         self.team_tier_rank = team_tier_rank
         # assign defaults
         self.overall_freq = 0.0
-        self.win_rank = 0.0
+        self.score = 0.0
 
     def determine_default_team_tier_rank(self):
         """Determines the default team tier rank based on individual class ranks and roles"""
@@ -138,19 +138,19 @@ class Team:
         else:
             prob_to_win = 1.0 - prob_to_win_by_tier[other_team.team_tier_rank][self.team_tier_rank]
 
-        self.win_rank += (other_team.overall_freq * prob_to_win)*100
+        self.score += (other_team.overall_freq * prob_to_win)*100
 
     def print(self):
         print(self.name)
         print("\t{}".format(self.team_tier_rank))
         print("\tfrequency: {:0.1f}%".format(self.overall_freq*100))
-        print("\twin_rank: {:0.0f}".format(self.win_rank))
+        print("\tscore: {:0.1f}".format(self.score))
 
     def __lt__(self,other):
-        return(self.win_rank < other.win_rank)
+        return(self.score < other.score)
 
     def __le__(self,other):
-        return(self.win_rank <= other.win_rank)
+        return(self.score <= other.score)
     
 class TeamRoster:
     def __init__(self,class_spec_tier_rank,team_tier_rank_override_dict):
@@ -197,6 +197,12 @@ class TeamRoster:
             teams_to_print[team].print()
         
     def opt(self,prob_to_win_by_tier,prob_to_win_by_team_dict):
+        max_score = 0.0
         for team_self in self.teams:
             for team_other in self.teams:
                 self.teams[team_self].fight(self.teams[team_other],prob_to_win_by_tier,prob_to_win_by_team_dict)
+            max_score = max([max_score,self.teams[team_self].score])
+        
+        # rescale score [0,100]
+        for team_self in self.teams:
+            self.teams[team_self].score = self.teams[team_self].score/max_score*100
